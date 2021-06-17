@@ -1,0 +1,53 @@
+--- dmenu.c
++++ dmenu.c
+@@ -270,14 +304,24 @@ match(void)
+ 				break;
+ 		if (i != tokc) /* not all tokens match */
+ 			continue;
+-		/* exact matches go first, then prefixes, then substrings */
++		/* exact matches go first, then prefixes with high priority, then prefixes, then substrings */
+ 		if (!tokc || !fstrncmp(text, item->text, textsize))
+ 			appenditem(item, &matches, &matchend);
++		else if (item->hp && !fstrncmp(tokv[0], item->text, len))
++			appenditem(item, &lhpprefix, &hpprefixend);
+ 		else if (!fstrncmp(tokv[0], item->text, len))
+ 			appenditem(item, &lprefix, &prefixend);
+ 		else
+ 			appenditem(item, &lsubstr, &substrend);
+ 	}
++	if (lhpprefix) {
++		if (matches) {
++			matchend->right = lhpprefix;
++			lhpprefix->left = matchend;
++		} else
++			matches = lhpprefix;
++		matchend = hpprefixend;
++	}
+ 	if (lprefix) {
+ 		if (matches) {
+ 			matchend->right = lprefix;
+@@ -718,7 +763,8 @@ static void
+ usage(void)
+ {
+ 	fputs("usage: dmenu [-bfiv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
+-	      "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n", stderr);
++	      "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n"
++		  "             [-hb color] [-hf color] [-hp items]\n", stderr);
+ 	exit(1);
+ }
+ 
+@@ -759,8 +805,14 @@ main(int argc, char *argv[])
+ 			colors[SchemeSel][ColBg] = argv[++i];
+ 		else if (!strcmp(argv[i], "-sf"))  /* selected foreground color */
+ 			colors[SchemeSel][ColFg] = argv[++i];
++		else if (!strcmp(argv[i], "-hb"))  /* high priority background color */
++			colors[SchemeHp][ColBg] = argv[++i];
++		else if (!strcmp(argv[i], "-hf")) /* low priority background color */
++			colors[SchemeHp][ColFg] = argv[++i];
+ 		else if (!strcmp(argv[i], "-w"))   /* embedding window id */
+ 			embed = argv[++i];
++		else if (!strcmp(argv[i], "-hp"))
++			hpitems = tokenize(argv[++i], ",", &hplength);
+ 		else
+ 			usage();
+ 
